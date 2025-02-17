@@ -13,6 +13,12 @@
         color: #fff;
         margin: 0;
         padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        transition: background 0.5s ease;
       }
 
       h1 {
@@ -26,16 +32,22 @@
         display: flex;
         justify-content: center;
         margin-bottom: 20px;
+        position: relative;
+        width: 100%;
+        max-width: 600px;
       }
 
       input[type='text'] {
         padding: 15px;
-        width: 300px;
+        width: 80%;
+        max-width: 400px;
         border: none;
         border-radius: 25px;
         font-size: 16px;
         margin-right: 10px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        background-color: #fff;
+        color: #333;
       }
 
       input[type='text']:focus {
@@ -66,6 +78,8 @@
         border-radius: 10px;
         text-align: center;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 600px;
       }
 
       #weatherDisplay h3 {
@@ -78,6 +92,26 @@
         font-size: 1.1em;
       }
 
+      #weatherIcon {
+        width: 100px;
+        margin-top: 15px;
+      }
+
+      #unitToggle {
+        margin-top: 15px;
+        font-size: 16px;
+        background-color: #28a745;
+        color: #fff;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      #unitToggle:hover {
+        background-color: #218838;
+      }
+
       h2 {
         font-size: 1.8em;
         margin-top: 30px;
@@ -88,6 +122,9 @@
       ul {
         list-style-type: none;
         padding: 0;
+        margin: 0;
+        width: 100%;
+        max-width: 600px;
       }
 
       li {
@@ -137,20 +174,92 @@
         background-color: #c82333;
       }
 
-      .btn-show-weather {
-        background-color: #28a745;
-        color: #fff;
-      }
-
-      .btn-show-weather:hover {
-        background-color: #218838;
-      }
-
       #errorMessage {
         text-align: center;
         font-size: 18px;
         margin: 15px 0;
         color: #ff4d4d;
+      }
+
+      #suggestions {
+        list-style-type: none;
+        padding: 0;
+        margin: 5px 0 0;
+        position: absolute;
+        width: 100%;
+        max-width: 400px;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        z-index: 999;
+        display: none;
+      }
+
+      #suggestions li {
+        padding: 10px;
+        cursor: pointer;
+        background-color: #f9f9f9;
+        color: #333;
+        font-size: 16px;
+      }
+
+      #suggestions li:hover {
+        background-color: #ddd;
+      }
+
+      /* Highlighted suggestion styling */
+      #suggestions li.highlight {
+        background-color: #cce7ff;
+        color: #0056b3;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        body {
+          padding: 15px;
+        }
+
+        h1 {
+          font-size: 2em;
+        }
+
+        input[type='text'] {
+          width: 70%;
+        }
+
+        #weatherDisplay {
+          width: 90%;
+        }
+
+        #suggestions {
+          width: 70%;
+        }
+      }
+
+      @media (max-width: 480px) {
+        body {
+          padding: 10px;
+        }
+
+        h1 {
+          font-size: 1.5em;
+        }
+
+        input[type='text'] {
+          width: 60%;
+        }
+
+        #weatherDisplay {
+          width: 100%;
+        }
+
+        #suggestions {
+          width: 60%;
+        }
+
+        li {
+          font-size: 14px;
+        }
       }
     </style>
   </head>
@@ -163,8 +272,13 @@
       <button type="submit">Search</button>
     </form>
 
+    <ul id="suggestions"></ul>
+
     <!-- Weather Display -->
     <div id="weatherDisplay"></div>
+
+    <!-- Unit Toggle Button -->
+    <button id="unitToggle">Toggle Temperature Unit</button>
 
     <!-- Favorite Cities Section -->
     <h2>Favorite Cities</h2>
@@ -174,6 +288,17 @@
       const API_KEY = 'bd5e378503939ddaee76f12ad7a97608';
       const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
+      let isCelsius = true;
+
+      const citiesList = [
+        "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose",
+        "Austin", "Jacksonville", "Fort Worth", "Columbus", "Indianapolis", "Charlotte", "San Francisco", "Seattle", "Denver", "Washington",
+        "Boston", "El Paso", "Detroit", "Nashville", "Portland", "Memphis", "Oklahoma City", "Las Vegas", "Louisville", "Baltimore",
+        "Milwaukee", "Albuquerque", "Tucson", "Fresno", "Sacramento", "Kansas City", "Long Beach", "Mesa", "Atlanta", "Miami", "Raleigh",
+        "Omaha", "Minneapolis", "Cleveland", "Tulsa", "Wichita", "Arlington", "Bakersfield", "New Orleans", "Tampa", "Honolulu"
+      ];
+
+      // Event listener for search form submission
       document.getElementById('searchForm').addEventListener('submit', (event) => {
         event.preventDefault();
         const city = document.getElementById('cityInput').value.trim();
@@ -187,99 +312,141 @@
           if (data && data.cod === 200) {
             displayWeather(data);
             addToFavorites(city);
+            document.getElementById('cityInput').value = ''; // Clear search input
+            document.getElementById('suggestions').innerHTML = ''; // Clear suggestions
           } else {
             displayError('City not found. Please enter a valid city name.');
           }
         });
       });
 
+      // Fetch weather data from OpenWeatherMap API
       function fetchWeather(city) {
-        const url = `${BASE_URL}?q=${city}&appid=${API_KEY}&units=metric`;
+        const url = `${BASE_URL}?q=${city}&appid=${API_KEY}&units=${isCelsius ? 'metric' : 'imperial'}`;
         return fetch(url)
           .then((response) => response.json())
-          .then((data) => data)
-          .catch((error) => {
-            displayError('Error fetching weather data. Please try again later.');
-            console.error('Error fetching weather data:', error);
-          });
+          .catch((error) => console.error('Error fetching weather data:', error));
       }
 
+      // Display weather information
       function displayWeather(data) {
         const weatherDisplay = document.getElementById('weatherDisplay');
-        const { name, main, weather, wind } = data;
+        const iconUrl = `http://openweathermap.org/img/w/${data.weather[0].icon}.png`;
+
+        // Adjust background based on weather conditions
+        if (data.weather[0].main === 'Clear') {
+          document.body.style.background = 'linear-gradient(to bottom right, #ff7e5f, #ff6f61)';
+        } else if (data.weather[0].main === 'Rain') {
+          document.body.style.background = 'linear-gradient(to bottom right, #5f9ea0, #4682b4)';
+        } else {
+          document.body.style.background = 'linear-gradient(to bottom right, #6a11cb, #2575fc)';
+        }
 
         weatherDisplay.innerHTML = `
-          <h3>Weather in ${name}</h3>
-          <p>Temperature: ${main.temp}&#8451;</p>
-          <p>Pressure: ${main.pressure} hPa</p>
-          <p>Condition: ${weather[0].description}</p>
-          <p>Wind Speed: ${wind.speed} m/s</p>
+          <h3>${data.name}, ${data.sys.country}</h3>
+          <p>${data.weather[0].description}</p>
+          <img id="weatherIcon" src="${iconUrl}" alt="weather icon" />
+          <p>Temperature: ${data.main.temp} °${isCelsius ? 'C' : 'F'}</p>
+          <p>Pressure: ${data.main.pressure} hPa</p>
+          <p>Wind Speed: ${data.wind.speed} m/s</p>
         `;
       }
 
+      // Display error message
       function displayError(message) {
         const weatherDisplay = document.getElementById('weatherDisplay');
         weatherDisplay.innerHTML = `<p id="errorMessage">${message}</p>`;
       }
 
+      // Toggle between Celsius and Fahrenheit
+      document.getElementById('unitToggle').addEventListener('click', () => {
+        isCelsius = !isCelsius;
+        const city = document.getElementById('cityInput').value.trim();
+        if (city) {
+          fetchWeather(city).then((data) => {
+            if (data && data.cod === 200) {
+              displayWeather(data);
+            }
+          });
+        }
+      });
+
+      // Add city to favorites
       function addToFavorites(city) {
         let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-
         if (!favorites.includes(city)) {
           favorites.push(city);
           localStorage.setItem('favorites', JSON.stringify(favorites));
           displayFavorites();
-        } else {
-          displayError(`${city} is already in your favorites.`);
         }
       }
 
+      // Display favorite cities
       function displayFavorites() {
         const favoritesList = document.getElementById('favoritesList');
-        const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-
         favoritesList.innerHTML = '';
+        const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
         favorites.forEach((city) => {
           const li = document.createElement('li');
           li.innerHTML = `
             <span>${city}</span>
-            <button class="btn-edit" onclick="editFavorite('${city}')">Edit</button>
             <button class="btn-remove" onclick="removeFromFavorites('${city}')">Remove</button>
-            <button class="btn-show-weather" onclick="fetchWeather('${city}').then(displayWeather)">Show Weather</button>
           `;
           favoritesList.appendChild(li);
         });
       }
 
-      function editFavorite(oldCity) {
-        const newCity = prompt('Enter the new city name:', oldCity).trim();
-
-        if (newCity && newCity !== oldCity) {
-          let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-
-          if (favorites.includes(newCity)) {
-            displayError(`${newCity} is already in your favorites.`);
-            return;
-          }
-
-          const index = favorites.indexOf(oldCity);
-          if (index !== -1) {
-            favorites[index] = newCity;
-            localStorage.setItem('favorites', JSON.stringify(favorites));
-            displayFavorites();
-          }
-        }
-      }
-
+      // Remove city from favorites
       function removeFromFavorites(city) {
         let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-        favorites = favorites.filter((favCity) => favCity !== city);
-
+        favorites = favorites.filter((item) => item !== city);
         localStorage.setItem('favorites', JSON.stringify(favorites));
         displayFavorites();
       }
 
-      document.addEventListener('DOMContentLoaded', displayFavorites);
+      // Initial load for favorite cities
+      displayFavorites();
+
+      // Autocomplete suggestions for city search
+      const cityInput = document.getElementById('cityInput');
+      cityInput.addEventListener('input', () => {
+        const inputValue = cityInput.value.trim().toLowerCase();
+        const suggestions = inputValue
+          ? citiesList.filter((city) => city.toLowerCase().includes(inputValue))
+          : [];
+
+        displaySuggestions(suggestions);
+      });
+
+      // Display suggestions in the dropdown
+      function displaySuggestions(suggestions) {
+        const suggestionsList = document.getElementById('suggestions');
+        suggestionsList.innerHTML = '';
+        if (suggestions.length > 0) {
+          suggestionsList.style.display = 'block';
+          suggestions.forEach((suggestion, index) => {
+            const suggestionItem = document.createElement('li');
+            suggestionItem.textContent = suggestion;
+            suggestionItem.addEventListener('click', () => {
+              cityInput.value = suggestion;
+              suggestionsList.innerHTML = ''; // Clear suggestions after selection
+              fetchWeather(suggestion).then((data) => {
+                if (data && data.cod === 200) {
+                  displayWeather(data);
+                  addToFavorites(suggestion);
+                } else {
+                  displayError('City not found.');
+                }
+              });
+            });
+
+            if (index === 0) suggestionItem.classList.add('highlight');
+            suggestionsList.appendChild(suggestionItem);
+          });
+        } else {
+          suggestionsList.style.display = 'none';
+        }
+      }
     </script>
   </body>
 </html>
